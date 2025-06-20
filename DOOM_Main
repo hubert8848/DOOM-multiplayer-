@@ -766,11 +766,11 @@
                     const dy = bullet.y - this.player.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     const angle = Math.atan2(dy, dx) - this.player.angle;
-                    
+
                     if (Math.abs(angle) < Math.PI / 2 && distance < 8) {
                         const screenX = (this.width / 2) + (Math.tan(angle) * this.width);
                         const bulletSize = Math.max(3, 8 / distance);
-                        
+
                         if (screenX >= 0 && screenX < this.width) {
                             this.ctx.fillStyle = '#ffff00';
                             this.ctx.beginPath();
@@ -778,4 +778,50 @@
                             this.ctx.fill();
                         }
                     }
+                });
+
+                // Draw hit markers
+                this.hitMarkers.forEach(marker => {
+                    const dx = marker.x - this.player.x;
+                    const dy = marker.y - this.player.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const angle = Math.atan2(dy, dx) - this.player.angle;
+
+                    if (Math.abs(angle) < Math.PI / 2 && distance < 10) {
+                        const screenX = (this.width / 2) + (Math.tan(angle) * this.width);
+                        const size = Math.max(5, 20 / distance);
+
+                        if (screenX >= 0 && screenX < this.width) {
+                            this.ctx.strokeStyle = '#ff0000';
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(screenX - size, this.height/2 - size);
+                            this.ctx.lineTo(screenX + size, this.height/2 + size);
+                            this.ctx.moveTo(screenX - size, this.height/2 + size);
+                            this.ctx.lineTo(screenX + size, this.height/2 - size);
+                            this.ctx.stroke();
+                        }
                     }
+                });
+
+                // Muzzle flash
+                if (this.muzzleFlash > 0) {
+                    this.ctx.fillStyle = 'rgba(255,255,0,0.7)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.width/2, this.height/2, 30, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            }
+
+            gameLoop() {
+                this.update();
+                this.render();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        window.addEventListener('load', () => {
+            new DoomGame();
+        });
+    </script>
+</body>
+</html>
