@@ -181,13 +181,24 @@
                 this.shooting = false;
                 this.shootingTime = 0;
                 this.muzzleFlash = false;
+                this.damageTime = 0;
                 
-                // Enemies (simple dots for now)
-                this.enemies = [
-                    {x: 3.5, y: 3.5, health: 50, alive: true, dir: Math.random() * Math.PI * 2},
-                    {x: 8.5, y: 5.5, health: 50, alive: true, dir: Math.random() * Math.PI * 2},
-                    {x: 12.5, y: 8.5, health: 50, alive: true, dir: Math.random() * Math.PI * 2}
+                // Enemy spawn points
+                this.spawnPoints = [
+                    {x: 3.5, y: 3.5},
+                    {x: 8.5, y: 5.5},
+                    {x: 12.5, y: 8.5}
                 ];
+
+                // Enemies
+                this.enemies = this.spawnPoints.map(sp => ({
+                    x: sp.x,
+                    y: sp.y,
+                    health: 50,
+                    alive: true,
+                    dir: Math.random() * Math.PI * 2,
+                    respawn: 0
+                }));
 
                 this.ammoPickups = [
                     {x: 5.5, y: 2.5, amount: 20},
@@ -263,6 +274,7 @@
                                     enemy.health -= 25;
                                     if (enemy.health <= 0) {
                                         enemy.alive = false;
+                                        enemy.respawn = 300;
                                     }
                                 }
                             }
@@ -281,6 +293,7 @@
                 }
                 if (amount > 0) {
                     this.player.health = Math.max(0, this.player.health - amount);
+                    this.damageTime = 15;
                 }
                 this.updateUI();
             }
@@ -338,22 +351,44 @@
                     return true;
                 });
 
-                // Enemy movement and attacks
+                // Enemy movement, attacks and respawn
                 for (let enemy of this.enemies) {
-                    if (!enemy.alive) continue;
-                    const speed = 0.02;
+                    if (!enemy.alive) {
+                        if (enemy.respawn > 0) {
+                            enemy.respawn--;
+                            if (enemy.respawn === 0) {
+                                const sp = this.spawnPoints[Math.floor(Math.random() * this.spawnPoints.length)];
+                                enemy.x = sp.x;
+                                enemy.y = sp.y;
+                                enemy.health = 50;
+                                enemy.alive = true;
+                                enemy.dir = Math.random() * Math.PI * 2;
+                            }
+                        }
+                        continue;
+                    }
+
+                    // turn towards the player
+                    const dxp = this.player.x - enemy.x;
+                    const dyp = this.player.y - enemy.y;
+                    const targetDir = Math.atan2(dyp, dxp);
+                    let diff = targetDir - enemy.dir;
+                    diff = ((diff + Math.PI) % (Math.PI * 2)) - Math.PI;
+                    enemy.dir += Math.sign(diff) * 0.05;
+
+                    const speed = 0.03;
                     const ex = enemy.x + Math.cos(enemy.dir) * speed;
                     const ey = enemy.y + Math.sin(enemy.dir) * speed;
                     if (this.map[Math.floor(ey)][Math.floor(ex)] === 0) {
                         enemy.x = ex;
                         enemy.y = ey;
                     } else {
-                        enemy.dir = Math.random() * Math.PI * 2;
+                        enemy.dir += Math.PI / 2;
                     }
 
                     const dist = Math.hypot(enemy.x - this.player.x, enemy.y - this.player.y);
                     if (dist < 1) {
-                        this.dealDamage(0.5);
+                        this.dealDamage(1);
                     }
                 }
 
@@ -364,6 +399,11 @@
                         this.shooting = false;
                         this.muzzleFlash = false;
                     }
+                }
+
+                // Damage overlay timer
+                if (this.damageTime > 0) {
+                    this.damageTime--;
                 }
 
                 this.updateUI();
@@ -474,12 +514,12 @@
                         // Only draw if in view and not too far
                         if (Math.abs(angle) < Math.PI / 3 && distance < 8) {
                             const screenX = (this.width / 2) + (Math.tan(angle) * this.width / 2);
-                            const enemySize = Math.max(15, 80 / distance);
+                            const enemySize = Math.max(20, 120 / distance);
                             const enemyY = this.height/2 + enemySize * 0.2; // Ground level
                             
                             // Make sure enemy is on screen
                             if (screenX > -enemySize && screenX < this.width + enemySize) {
-                                this.drawStickFigure(screenX, enemyY, enemySize, '#ff4444');
+                                this.drawStickFigure(screenX, enemyY, enemySize, '#ff8888');
                             }
                         }
                     }
@@ -524,7 +564,14 @@
                     this.ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
                     this.ctx.fillRect(0, 0, this.width, this.height);
                 }
-                
+
+                // Damage overlay
+                if (this.damageTime > 0) {
+                    const alpha = (this.damageTime / 15) * 0.5;
+                    this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                    this.ctx.fillRect(0, 0, this.width, this.height);
+                }
+
                 // Weapon sprite (simple rectangle)
                 const weaponWidth = 100;
                 const weaponHeight = 150;
